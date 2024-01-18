@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import "./Challenges.scss";
+
+const ChallengeItem = ({ challenge, isAdmin, onDelete }) => (
+  <li>
+    {challenge.task}
+    {isAdmin && <button onClick={() => onDelete(challenge.id)}>Löschen</button>}
+  </li>
+);
 
 const Challenges = () => {
   const [challenges, setChallenges] = useState([]);
@@ -8,9 +16,13 @@ const Challenges = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   useEffect(() => {
     fetchChallenges();
-  }, []);
+  }, [isLoggedIn]);
 
   const fetchChallenges = async () => {
     try {
@@ -21,6 +33,18 @@ const Challenges = () => {
       console.error("Error fetching challenges:", error);
       setError("Error fetching challenges");
       setLoading(false);
+    }
+  };
+
+  const handleLogin = () => {
+    if (username === "admin" && password === "zentrum") {
+      setIsAdmin(true);
+      setIsLoggedIn(true);
+    } else if (username === "123" && password === "123") {
+      setIsAdmin(false);
+      setIsLoggedIn(true);
+    } else {
+      setError("Invalid username or password");
     }
   };
 
@@ -40,45 +64,59 @@ const Challenges = () => {
   };
 
   const handleDeleteChallenge = async (id) => {
-    try {
-      if (isAdmin) {
+    if (isAdmin) {
+      try {
         const response = await axios.delete(`https://challenges-mysql.onrender.com/api/v1/challenges/${id}`);
         console.log("Challenge deleted:", response.data);
         fetchChallenges();
-      } else {
-        console.error("User is not an admin");
-        setError("User is not an admin");
+      } catch (error) {
+        console.error("Error deleting challenge:", error);
+        setError("Error deleting challenge");
       }
-    } catch (error) {
-      console.error("Error deleting challenge:", error);
-      setError("Error deleting challenge");
+    } else {
+      setError("Permission denied. Only admins can delete challenges.");
     }
   };
 
   return (
-    <div>
+    <div className="challenges-container">
       <h2>Challenges</h2>
 
-      {loading && <p>Loading...</p>}
-      {error && <p>{error}</p>}
+      {isLoggedIn ? (
+        <>
+          {loading && <p>Loading...</p>}
+          {error && <p>{error}</p>}
 
-      <div>
-        <input type="text" value={newChallenge} onChange={(e) => setNewChallenge(e.target.value)} />
-        <button onClick={handlePostChallenge}>Post Challenge</button>
-      </div>
+          <div>
+            <input type="text" value={newChallenge} onChange={(e) => setNewChallenge(e.target.value)} />
+            <button onClick={handlePostChallenge}>Post Challenge</button>
+          </div>
 
-      <ul>
-        {challenges.map((challenge) => (
-          <li key={challenge.id}>
-            {challenge.task}
-            {isAdmin && (
-              <button onClick={() => handleDeleteChallenge(challenge.id)}>
-                Delete Challenge
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+          <ul>
+            {challenges.map((challenge) => (
+              <ChallengeItem
+                key={challenge.id}
+                challenge={challenge}
+                isAdmin={isAdmin}
+                onDelete={handleDeleteChallenge}
+              />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div>
+          <label>
+            Username:
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
+          </label>
+          <label>
+            Password:
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </label>
+          <button onClick={handleLogin}>Login</button>
+          {error && <p>{error}</p>}
+        </div>
+      )}
     </div>
   );
 };
